@@ -166,8 +166,8 @@ module ActiveRecord
           limit ||= acts_as_list_list.count
           position_value = send(position_column)
           acts_as_list_list.
-            where("#{quoted_position_column_with_table_name} <= ?", position_value).
-            where("#{quoted_table_name}.#{self.class.primary_key} != ?", self.send(self.class.primary_key)).
+            position_less_than_or_equal(position_value).
+            id_not_equal(self.send(self.class.primary_key)).
             order("#{quoted_position_column_with_table_name} DESC").
             limit(limit)
         end
@@ -184,8 +184,8 @@ module ActiveRecord
           limit ||= acts_as_list_list.count
           position_value = send(position_column)
           acts_as_list_list.
-            where("#{quoted_position_column_with_table_name} >= ?", position_value).
-            where("#{quoted_table_name}.#{self.class.primary_key} != ?", self.send(self.class.primary_key)).
+            position_greater_than_or_equal(position_value).
+            id_not_equal(self.send(self.class.primary_key)).
             order("#{quoted_position_column_with_table_name} ASC").
             limit(limit)
         end
@@ -275,7 +275,7 @@ module ActiveRecord
           scope = acts_as_list_list
 
           if except
-            scope = scope.where("#{quoted_table_name}.#{self.class.primary_key} != ?", except.id)
+            scope = scope.id_not_equal(except.id)
           end
 
           scope.in_list.order("#{quoted_position_column_with_table_name} DESC").first
@@ -299,9 +299,7 @@ module ActiveRecord
         # This has the effect of moving all the higher items down one.
         def increment_positions_on_higher_items(position)
           return unless in_list?
-          safe_increment_all(
-            acts_as_list_list.where("#{quoted_position_column_with_table_name} < ?", position)
-          )
+          safe_increment_all(acts_as_list_list.position_less_than(position))
         end
 
         # This has the effect of moving all the lower items down one.
@@ -309,28 +307,24 @@ module ActiveRecord
           scope = acts_as_list_list
 
           if avoid_id
-            scope = scope.where("#{quoted_table_name}.#{self.class.primary_key} != ?", avoid_id)
+            scope = scope.id_not_equal(avoid_id)
           end
 
           safe_increment_all(
-            scope.where("#{quoted_position_column_with_table_name} >= ?", position)
+            scope.position_greater_than_or_equal(position)
           )
         end
 
         # This has the effect of moving all the higher items up one.
         def decrement_positions_on_higher_items(position)
-          safe_decrement_all(
-            acts_as_list_list.where("#{quoted_position_column_with_table_name} <= ?", position)
-          )
+          safe_decrement_all(acts_as_list_list.position_less_than_or_equal(position))
         end
 
         # This has the effect of moving all the lower items up one.
         def decrement_positions_on_lower_items(position=nil)
           return unless in_list?
           position ||= send(position_column).to_i
-          safe_decrement_all(
-            acts_as_list_list.where("#{quoted_position_column_with_table_name} > ?", position)
-          )
+          safe_decrement_all(acts_as_list_list.position_greater_than(position))
         end
 
         # Increments position (<tt>position_column</tt>) of all items in the list.
@@ -348,7 +342,7 @@ module ActiveRecord
           scope = acts_as_list_list
 
           if avoid_id
-            scope = scope.where("#{quoted_table_name}.#{self.class.primary_key} != ?", avoid_id)
+            scope = scope.id_not_equal(avoid_id)
           end
 
           if old_position < new_position
@@ -356,11 +350,9 @@ module ActiveRecord
             #
             # e.g., if moving an item from 2 to 5,
             # move [3, 4, 5] to [2, 3, 4]
-            items = scope.where(
-              "#{quoted_position_column_with_table_name} > ?", old_position
-            ).where(
-              "#{quoted_position_column_with_table_name} <= ?", new_position
-            )
+            items = scope.
+              position_greater_than(old_position).
+              position_less_than_or_equal(new_position)
 
             safe_decrement_all(items)
           else
@@ -368,11 +360,9 @@ module ActiveRecord
             #
             # e.g., if moving an item from 5 to 2,
             # move [2, 3, 4] to [3, 4, 5]
-            items = scope.where(
-              "#{quoted_position_column_with_table_name} >= ?", new_position
-            ).where(
-              "#{quoted_position_column_with_table_name} < ?", old_position
-            )
+            items = scope.
+              position_greater_than_or_equal(new_position).
+              position_less_than(old_position)
 
             safe_increment_all(items)
           end
