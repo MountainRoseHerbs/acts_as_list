@@ -380,7 +380,7 @@ module ActiveRecord
 
         def safe_increment_all(items)
           if sequential_updates?
-            items.order("#{quoted_position_column_with_table_name} DESC").each do |item|
+            items.order("#{quoted_position_column_with_table_name} DESC").lock.each do |item|
               item.increment!(position_column)
             end
           else
@@ -390,7 +390,7 @@ module ActiveRecord
 
         def safe_decrement_all(items)
           if sequential_updates?
-            items.order("#{quoted_position_column_with_table_name} ASC").each do |item|
+            items.order("#{quoted_position_column_with_table_name} ASC").lock.each do |item|
               item.decrement!(position_column)
             end
           else
