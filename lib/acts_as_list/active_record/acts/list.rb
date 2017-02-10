@@ -98,7 +98,9 @@ module ActiveRecord
         def move_to_bottom
           return unless in_list?
           acts_as_list_class.transaction do
-            decrement_positions_on_lower_items
+            position = send(position_column).to_i
+            assume_temporary_position
+            decrement_positions_on_lower_items(position)
             assume_bottom_position
           end
         end
@@ -108,7 +110,9 @@ module ActiveRecord
         def move_to_top
           return unless in_list?
           acts_as_list_class.transaction do
-            increment_positions_on_higher_items
+            position = send(position_column).to_i
+            assume_temporary_position
+            increment_positions_on_higher_items(position)
             assume_top_position
           end
         end
@@ -287,10 +291,17 @@ module ActiveRecord
           set_list_position(acts_as_list_top)
         end
 
+        # Forces item to temporary position that will not conflict with other items
+        def assume_temporary_position
+          set_list_position(bottom_position_in_list(self).to_i + 2)
+        end
+
         # This has the effect of moving all the higher items down one.
-        def increment_positions_on_higher_items
+        def increment_positions_on_higher_items(position)
           return unless in_list?
-          acts_as_list_list.where("#{quoted_position_column_with_table_name} < ?", send(position_column).to_i).increment_all
+          safe_increment_all(
+            acts_as_list_list.where("#{quoted_position_column_with_table_name} < ?", position)
+          )
         end
 
         # This has the effect of moving all the lower items down one.
@@ -301,24 +312,30 @@ module ActiveRecord
             scope = scope.where("#{quoted_table_name}.#{self.class.primary_key} != ?", avoid_id)
           end
 
-          scope.where("#{quoted_position_column_with_table_name} >= ?", position).increment_all
+          safe_increment_all(
+            scope.where("#{quoted_position_column_with_table_name} >= ?", position)
+          )
         end
 
         # This has the effect of moving all the higher items up one.
         def decrement_positions_on_higher_items(position)
-          acts_as_list_list.where("#{quoted_position_column_with_table_name} <= ?", position).decrement_all
+          safe_decrement_all(
+            acts_as_list_list.where("#{quoted_position_column_with_table_name} <= ?", position)
+          )
         end
 
         # This has the effect of moving all the lower items up one.
         def decrement_positions_on_lower_items(position=nil)
           return unless in_list?
           position ||= send(position_column).to_i
-          acts_as_list_list.where("#{quoted_position_column_with_table_name} > ?", position).decrement_all
+          safe_decrement_all(
+            acts_as_list_list.where("#{quoted_position_column_with_table_name} > ?", position)
+          )
         end
 
         # Increments position (<tt>position_column</tt>) of all items in the list.
         def increment_positions_on_all_items
-          acts_as_list_list.increment_all
+          safe_increment_all(acts_as_list_list)
         end
 
         # Reorders intermediate items to support moving an item from old_position to new_position.
