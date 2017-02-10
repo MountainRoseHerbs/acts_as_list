@@ -394,7 +394,7 @@ module ActiveRecord
 
         def safe_increment_all(items)
           if sequential_updates?
-            items.reorder(acts_as_list_order_argument(:desc)).each do |item|
+            items.reorder(acts_as_list_order_argument(:desc)).lock.each do |item|
               item.increment!(position_column)
             end
           else
@@ -404,7 +404,7 @@ module ActiveRecord
 
         def safe_decrement_all(items)
           if sequential_updates?
-            items.reorder(acts_as_list_order_argument(:asc)).each do |item|
+            items.reorder(acts_as_list_order_argument(:asc)).lock.each do |item|
               item.decrement!(position_column)
             end
           else
