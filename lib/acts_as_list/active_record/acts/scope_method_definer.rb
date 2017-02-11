@@ -37,7 +37,12 @@ module ActiveRecord::Acts::List::ScopeMethodDefiner #:nodoc:
         end
       end
 
-      self.scope :in_list, lambda { where("#{quoted_position_column_with_table_name} IS NOT NULL") }
+      self.scope :in_list,                        -> { where("#{quoted_position_column_with_table_name} IS NOT NULL") }
+      self.scope :position_less_than,             -> (position) { where("#{quoted_position_column_with_table_name} < ?",  position) }
+      self.scope :position_greater_than,          -> (position) { where("#{quoted_position_column_with_table_name} > ?",  position) }
+      self.scope :position_less_than_or_equal,    -> (position) { where("#{quoted_position_column_with_table_name} <= ?", position) }
+      self.scope :position_greater_than_or_equal, -> (position) { where("#{quoted_position_column_with_table_name} >= ?", position) }
+      self.scope :id_not_equal,                   -> (id) { where("#{quoted_table_name}.#{primary_key} != ?", id) }
     end
   end
 
