@@ -359,13 +359,7 @@ module ActiveRecord
               "#{quoted_position_column_with_table_name} <= ?", new_position
             )
 
-            if sequential_updates?
-              items.reorder(acts_as_list_order_argument(:asc)).each do |item|
-                item.decrement!(position_column)
-              end
-            else
-              items.decrement_all
-            end
+            safe_decrement_all(items)
           else
             # Increment position of intermediate items
             #
@@ -377,13 +371,27 @@ module ActiveRecord
               "#{quoted_position_column_with_table_name} < ?", old_position
             )
 
-            if sequential_updates?
-              items.reorder(acts_as_list_order_argument(:desc)).each do |item|
-                item.increment!(position_column)
-              end
-            else
-              items.increment_all
+            safe_increment_all(items)
+          end
+        end
+
+        def safe_increment_all(items)
+          if sequential_updates?
+            items.reorder(acts_as_list_order_argument(:desc)).each do |item|
+              item.increment!(position_column)
             end
+          else
+            items.increment_all
+          end
+        end
+
+        def safe_decrement_all(items)
+          if sequential_updates?
+            items.reorder(acts_as_list_order_argument(:asc)).each do |item|
+              item.decrement!(position_column)
+            end
+          else
+            items.decrement_all
           end
         end
 
